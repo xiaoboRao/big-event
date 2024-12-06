@@ -8,6 +8,7 @@ import com.bob.utils.Md5Util;
 import jakarta.validation.constraints.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -52,5 +53,17 @@ public class UserController {
                 return Result.error("密码错误");
             }
         }
+    }
+    @RequestMapping("/userInfo")
+    public  Result<User> getUserInfo(@RequestHeader(name = "Authorization") String token) {
+        try {
+            Map<String, Object> clainms = JwtUtil.parseToken(token);
+            String username = (String) clainms.get("username");
+            User user = userService.findUserByUserName(username);
+            return Result.success(user);
+        } catch (Exception e) {
+            return Result.error("获取失败");
+        }
+
     }
 }
