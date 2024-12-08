@@ -1,6 +1,7 @@
 package com.bob.interceptors;
 
 import com.bob.utils.JwtUtil;
+import com.bob.utils.ThreadLocalUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
@@ -17,6 +18,7 @@ public class LoginInterceptor implements HandlerInterceptor {
         //验证token
         try {
             Map<String, Object> claims = JwtUtil.parseToken(token);
+            ThreadLocalUtil.set(claims);
             return true;
         } catch (Exception e) {
             //http响应状态码为401
@@ -26,5 +28,8 @@ public class LoginInterceptor implements HandlerInterceptor {
         }
     }
 
-
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+        ThreadLocalUtil.remove();
+    }
 }
