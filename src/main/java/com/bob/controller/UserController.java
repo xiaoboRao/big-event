@@ -11,6 +11,8 @@ import io.micrometer.common.util.StringUtils;
 import jakarta.validation.constraints.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cglib.core.Local;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/user")
@@ -27,6 +30,8 @@ import java.util.Map;
 public class UserController {
     @Autowired
     private UserService userService;
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     @RequestMapping("/register")
     public Result register(@Pattern(regexp = "^\\S{5,16}$") String username, @Pattern(regexp = "^\\S{5,16}$") String password) {
@@ -54,6 +59,10 @@ public class UserController {
                 claims.put("username", u.getUsername());
                 claims.put("id", u.getId());
                 String token = JwtUtil.genToken(claims);
+
+                // 将 token 保存到 redis
+                ValueOperations<String, String> vop =  stringRedisTemplate.opsForValue();
+                vop.set(token, token, 1, TimeUnit.HOURS);
                 return Result.success(token);
             } else {
                 return Result.error("密码错误");
@@ -83,7 +92,7 @@ public class UserController {
     }
 
     @RequestMapping("/updatePwd")
-    public Result updatePwd(@RequestBody Map<String, Object> params) {
+    public Result updatePwd(@RequestBody Map<String, Object> params, @RequestHeader(name = "Authorization") String token) {
 
         String oldPwd = (String) params.get("old_pwd");
         String newPwd = (String) params.get("new_pwd");
@@ -104,7 +113,11 @@ public class UserController {
         }
         
         userService.updatePwd(newPwd);
-        
+        // 更新后，将旧 token 删除
+        ValueOperations<String, String> vop =  stringRedisTemplate.opsForValue();
+        System.out.println(vop.get(token));
+        vop.getOperations().delete(token);
+        System.out.println(vop.get(token));
         return Result.success("修改密码成功");
 
     }
